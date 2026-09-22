@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#2b1f2e">
+  <title>Wool Sort</title>
+  <meta name="description" content="A cosy kitten & wool take on the water-sort puzzle. Wind wool between spools; finish a colour and Mochi knits it into the scarf.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="assets/yarn.png" type="image/png">
+</head>
+<body>
+  <div id="app">
+    <!-- ===== Loading ===== -->
+    <div id="loading" class="screen">
+      <img src="assets/yarn.png" alt="" class="spin">
+      <p>Winding the wool…</p>
+    </div>
+
+    <!-- ===== Menu ===== -->
+    <div id="menu" class="screen hidden">
+      <img id="logo" src="assets/logo.png" alt="Wool Sort">
+      <button id="btn-play" class="btn btn-cta">Play</button>
+      <div id="level-grid"></div>
+      <details id="howto">
+        <summary>How to play</summary>
+        <ul>
+          <li>Tap a spool to pick up the wool on top, then tap another spool to wind it on. Wool only winds onto the same colour or an empty spool.</li>
+          <li><strong>The twist:</strong> gather a whole colour on one spool and Mochi knits it straight into the scarf. That spool comes back empty, so finishing colours early gives you room.</li>
+          <li>Empty every spool to finish the scarf. Beat par (+2) for three stars.</li>
+          <li>Little bobbins hold less wool. Short strands have only three bands. Fuzzy wool hides its colour until it reaches the top.</li>
+        </ul>
+      </details>
+      <p class="credit">A Lightbourne Labs kitten game · sibling of <a href="https://strawlighter.github.io/wool-flow/" target="_blank" rel="noopener">Wool Flow</a></p>
+    </div>
+
+    <!-- ===== Game ===== -->
+    <div id="game" class="screen hidden">
+      <div id="hud">
+        <button id="btn-home" class="icon-btn" title="Levels" aria-label="Back to levels">⌂</button>
+        <div id="hud-title"><span id="hud-level">Level 1</span><span id="hud-name">First Stitch</span></div>
+        <div id="hud-moves"><span id="hud-count">0</span><small>moves · par <span id="hud-par">0</span></small></div>
+        <button id="btn-sound" class="icon-btn" title="Sound" aria-label="Toggle sound">🔊</button>
+      </div>
+      <div id="stage"><canvas id="board"></canvas><div id="toast" class="hidden"></div></div>
+      <div id="toolbar">
+        <button class="tool" id="btn-undo"><img src="assets/icon_undo.png" alt=""><span>Undo</span></button>
+        <button class="tool" id="btn-hint"><img src="assets/icon_hint.png" alt=""><span>Hint</span></button>
+        <button class="tool" id="btn-spool"><img src="assets/icon_spool.png" alt=""><span>+Spool</span><b class="badge">1</b></button>
+        <button class="tool" id="btn-restart"><img src="assets/icon_restart.png" alt=""><span>Restart</span></button>
+      </div>
+    </div>
+
+    <!-- ===== Win ===== -->
+    <div id="win" class="modal hidden">
+      <div class="card">
+        <img class="banner" src="assets/banner_purrfect.png" alt="Purr-fect!">
+        <img class="kitten" src="assets/kitten_win.png" alt="">
+        <div id="win-stars" class="stars">★★★</div>
+        <p id="win-text">You finished the scarf in 12 moves (par 11).</p>
+        <div class="row">
+          <button id="btn-win-levels" class="btn">Levels</button>
+          <button id="btn-win-replay" class="btn">Replay</button>
+          <button id="btn-win-next" class="btn btn-cta">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Stuck ===== -->
+    <div id="stuck" class="modal hidden">
+      <div class="card">
+        <img class="kitten" src="assets/kitten_think.png" alt="">
+        <h2>Mochi's tangled!</h2>
+        <p>There are no useful moves left. Undo a few steps, add a spool or start over.</p>
+        <div class="row">
+          <button id="btn-stuck-undo" class="btn">Undo</button>
+          <button id="btn-stuck-spool" class="btn">+Spool</button>
+          <button id="btn-stuck-restart" class="btn btn-cta">Restart</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/engine.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
