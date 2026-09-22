@@ -30,7 +30,11 @@ then visit <http://localhost:8766>. With GitHub Pages enabled the game is live a
 | **+Spool** | Adds one empty spool for this level (once). |
 | **Restart** | Deal the level again. |
 
-Keyboard: `z`/`u` undo, `h` hint, `r` restart, `Esc` deselect.
+Keyboard: `z`/`u` undo, `h` hint, `r` restart, `k` toggle Mochi smack, `Esc` deselect.
+
+### Mochi smack (test)
+
+With the 🐾 button in the HUD on (the default), every move is delivered by Mochi: she drops onto the source spool, winds up with a paw raised, smacks the top band, and the wool shoots across to the target spool along its strand before she hops away. It uses Wool Flow's front-view swipe sheet (`assets/kitten_swipe_front_sheet.png`) and adds about a quarter of a second per move. Turn it off to get the plain wind animation.
 
 ## Daily Puzzle
 

@@ -10,7 +10,7 @@
   var ASSET_LIST = {
     spool: 'assets/spool.png', wool: 'assets/wool_tile.jpg', scarf: 'assets/scarf_tile.jpg',
     kittenKnit: 'assets/kitten_knit.png', kittenWin: 'assets/kitten_win.png', kittenThink: 'assets/kitten_think.png',
-    yarn: 'assets/yarn.png'
+    yarn: 'assets/yarn.png', swipe: 'assets/kitten_swipe_front_sheet.png'
   };
   var IMG = {};
 
@@ -28,6 +28,10 @@
   var usedHint = false, usedSpool = false, extraSpools = 0, layout = null, won = false;
   var liftAnim = {}, scarfPop = 0, kittenBounce = 0, toastTimer = 0, lastTime = 0;
   var STAGGER = 85, FLIGHT = 300, KNIT_TIME = 520;
+  // Mochi smack (test feature): she drops onto the source spool, winds up, and the wool launches on the hit frame.
+  var SMACK_DROP = 150, SMACK_HOLD = 110, SMACK_LINGER = 240, SMACK_EXIT = 170;
+  var cat = null;            // { spool, t0, hit (ms when the paw lands), done }
+  var debugTime = null;      // freeze the clock for screenshots
 
   // ---------- progress ----------
   var PKEY = 'woolsort.v1';
@@ -38,6 +42,7 @@
     p = p || {};
     p.stars = p.stars || {}; p.best = p.best || {}; p.daily = p.daily || {};
     if (p.sound === undefined) p.sound = true;
+    if (p.smack === undefined) p.smack = true;
     return p;
   }
   function save() { try { localStorage.setItem(PKEY, JSON.stringify(progress)); } catch (e) { /* ignore */ } }
@@ -172,7 +177,9 @@
     hello: function () { if (!audio()) return; meow(now() + 0.05, false); },
     hint: function () { if (!audio()) return; var t = now(); chime(880, t, 0.3, 0.08); chime(1320, t + 0.12, 0.35, 0.08); },
     click: function () { if (!audio()) return; var t = now(); osc('sine', 900, t, 0.05, 0.06, { slide: 600 }); noise(t, 0.03, 0.03, 3000, 1500, 1); },
-    hop: function () { if (!audio()) return; var t = now(); osc('triangle', 400, t, 0.12, 0.08, { slide: 700 }); }
+    hop: function () { if (!audio()) return; var t = now(); osc('triangle', 400, t, 0.12, 0.08, { slide: 700 }); },
+    pounce: function () { if (!audio()) return; var t = now(); noise(t, 0.16, 0.06, 900, 2600, 0.8); osc('triangle', 520, t, 0.14, 0.06, { slide: 900 }); },
+    smack: function () { if (!audio()) return; var t = now(); noise(t, 0.12, 0.14, 2600, 500, 0.9); thump(t + 0.01, 0.16); osc('square', 1800, t, 0.03, 0.05, { slide: 900 }); }
   };
 
   // ---------- assets ----------
@@ -397,11 +404,15 @@
       if (anim && anim.type === 'pour') {
         if (i === anim.from) { bands = anim.fromBands.slice(0, anim.fromBands.length - departed(now)); hid = anim.fromHidden; }
         else if (i === anim.to) { bands = anim.toBands.concat(repeatColor(anim.color, landed(now))); hid = null; }
+      } else if (anim && anim.type === 'smack') {
+        if (i === anim.from) { bands = anim.fromBands; hid = anim.fromHidden; }
+        else if (i === anim.to) { bands = anim.toBands; hid = null; }
       } else if (anim && anim.type === 'knit' && i === anim.spool) {
         var p = (now - anim.t0) / KNIT_TIME;
         bands = repeatColor(anim.color, Math.max(0, anim.count - Math.floor(p * (anim.count + 1)))); hid = null;
       }
       if (selected === i && !anim) liftedTop = E.topRun(st.spools[i]).count;
+      if (anim && anim.type === 'smack' && i === anim.from) liftedTop = anim.n;
       drawSpoolWithBands(i, lift, bands, hid, liftedTop);
       if (selected === i && !anim) drawHighlight(i, lift, '#ffd23f', 0.95);
       if (hint && (i === hint.from || i === hint.to)) {
@@ -409,6 +420,8 @@
         drawHighlight(i, lift, i === hint.from ? '#3cb44b' : '#1f75fe', pulse);
       }
     }
+    if (anim && anim.type === 'smack' && now - anim.t0 >= SMACK_DROP + SMACK_HOLD) startPourFromSmack(now);
+    drawCat(now);
     if (anim && anim.type === 'pour') {
       var Lf = layout.spools[anim.from];
       for (var k = 0; k < anim.n; k++) {
@@ -447,14 +460,45 @@
       if (now > hint.until) hint = null;
     }
   }
+  /** Mochi's smack overlay: drop in (frame 0), hit (frame 1), linger, hop out. */
+  function drawCat(now) {
+    if (!cat || !IMG.swipe) return;
+    var L = layout.spools[cat.spool], sheet = IMG.swipe, fw = sheet.width / 2, fh = sheet.height;
+    var h = L.w * 1.45, w = h * fw / fh;
+    var lift = liftAnim[cat.spool] || 0;
+    // rest position: paw (bottom of sprite) just above the lifted top band
+    var bandTop = L.barrelBottom - Math.max(1, cat.bandCount) * L.bandH - lift - 10;
+    var restY = bandTop - h * 0.82;
+    var t = now - cat.t0, frame = 0, y = restY, alpha = 1, scale = 1;
+    if (t < SMACK_DROP) { var p = t / SMACK_DROP; y = restY - 90 * (1 - p * p); frame = 0; }
+    else if (t < SMACK_DROP + SMACK_HOLD) { frame = 0; }
+    else if (t < SMACK_DROP + SMACK_HOLD + SMACK_LINGER) { frame = 1; y = restY + 6; }
+    else if (t < SMACK_DROP + SMACK_HOLD + SMACK_LINGER + SMACK_EXIT) {
+      var q = (t - SMACK_DROP - SMACK_HOLD - SMACK_LINGER) / SMACK_EXIT;
+      frame = 0; y = restY - 70 * q * q; alpha = 1 - q; scale = 1 - 0.25 * q;
+    } else { cat = null; return; }
+    ctx.save(); ctx.globalAlpha = alpha;
+    ctx.translate(L.cx, y + h); ctx.scale(scale, scale);
+    ctx.drawImage(sheet, frame * fw, 0, fw, fh, -w / 2, -h, w, h);
+    ctx.restore();
+  }
+  function startPourFromSmack(now) {
+    var a = anim;
+    anim = { type: 'pour', from: a.from, to: a.to, color: a.color, n: a.n, t0: now,
+      fromBands: a.fromBands, fromHidden: a.fromHidden, toBands: a.toBands, knit: a.knit };
+    SFX.smack();
+    for (var k = 0; k < a.n; k++) setTimeout(SFX.wind.bind(null, k), k * STAGGER + FLIGHT - 60);
+  }
   function repeatColor(c, n) { var a = []; for (var i = 0; i < n; i++) a.push(c); return a; }
   function departed(now) { var d = 0; for (var k = 0; k < anim.n; k++) if (now - anim.t0 - k * STAGGER > 0) d++; return d; }
   function landed(now) { var d = 0; for (var k = 0; k < anim.n; k++) if (now - anim.t0 - k * STAGGER >= FLIGHT) d++; return d; }
 
-  function frame(now) {
+  function clock() { return debugTime !== null ? debugTime : performance.now(); }
+  function frame(realNow) {
+    var now = clock();
     var dt = Math.min(50, now - (lastTime || now)); lastTime = now;
     for (var i = 0; st && i < st.spools.length; i++) {
-      var target = (selected === i && !anim) ? 16 : 0, cur = liftAnim[i] || 0;
+      var target = ((selected === i && !anim) || (anim && anim.type === 'smack' && i === anim.from)) ? 16 : 0, cur = liftAnim[i] || 0;
       liftAnim[i] = cur + (target - cur) * Math.min(1, dt / 70);
       if (Math.abs(liftAnim[i] - target) < 0.2) liftAnim[i] = target;
     }
@@ -472,16 +516,24 @@
     var fromBands = st.spools[a].slice(), fromHidden = st.hidden[a].slice(), toBands = st.spools[b].slice();
     var res = E.applyMove(st, a, b);
     history.push(before);
-    anim = { type: 'pour', from: a, to: b, color: res.color, n: res.moved, t0: performance.now(),
-      fromBands: fromBands, fromHidden: fromHidden, toBands: toBands, knit: res.knitted };
+    var t0 = clock();
+    if (progress.smack && IMG.swipe) {
+      anim = { type: 'smack', from: a, to: b, color: res.color, n: res.moved, t0: t0,
+        fromBands: fromBands, fromHidden: fromHidden, toBands: toBands, knit: res.knitted };
+      cat = { spool: a, t0: t0, bandCount: fromBands.length };
+      SFX.pounce();
+    } else {
+      anim = { type: 'pour', from: a, to: b, color: res.color, n: res.moved, t0: t0,
+        fromBands: fromBands, fromHidden: fromHidden, toBands: toBands, knit: res.knitted };
+      for (var k = 0; k < res.moved; k++) setTimeout(SFX.wind.bind(null, k), k * STAGGER + FLIGHT - 60);
+    }
     selected = -1; hint = null;
-    for (var k = 0; k < res.moved; k++) setTimeout(SFX.wind.bind(null, k), k * STAGGER + FLIGHT - 60);
     updateHud();
     return true;
   }
   function finishPour() {
     var a = anim;
-    if (a.knit >= 0) { anim = { type: 'knit', spool: a.to, color: a.knit, count: a.toBands.length + a.n, t0: performance.now() }; SFX.knit(); }
+    if (a.knit >= 0) { anim = { type: 'knit', spool: a.to, color: a.knit, count: a.toBands.length + a.n, t0: clock() }; SFX.knit(); }
     else { anim = null; afterMove(); }
   }
   function finishKnit() {
@@ -519,7 +571,7 @@
   // ---------- controls ----------
   function undo() {
     if (anim || !history.length) return;
-    st = history.pop(); selected = -1; hint = null; won = false;
+    st = history.pop(); selected = -1; hint = null; won = false; cat = null;
     layout = computeLayout(); updateHud(); SFX.click();
     hideModal('#stuck');
   }
@@ -535,7 +587,7 @@
     if (anim || won) return;
     var sol = E.solveDFS(st, 150000);
     if (!sol || !sol.length) { toast("Mochi can't see a way out from here — try Undo.", 2600); SFX.nope(); return; }
-    hint = { from: sol[0][0], to: sol[0][1], until: performance.now() + 2600 };
+    hint = { from: sol[0][0], to: sol[0][1], until: clock() + 2600 };
     usedHint = true; selected = -1; SFX.hint();
   }
   function updateHud() {
@@ -597,7 +649,7 @@
 
   function playLevel(lv, idx) {
     level = lv; levelIdx = idx; st = E.newState(level); history = []; selected = -1; anim = null; hint = null;
-    usedHint = false; usedSpool = false; extraSpools = 0; won = false; liftAnim = {};
+    usedHint = false; usedSpool = false; extraSpools = 0; won = false; liftAnim = {}; cat = null;
     hideModal('#win'); hideModal('#stuck');
     if (level.daily) { var pd = prettyDate(level.daily).split(' '); $('#hud-level').textContent = 'Daily ' + pd[1] + ' ' + pd[2]; $('#hud-name').textContent = level.twist; }
     else { $('#hud-level').textContent = 'Level ' + level.id; $('#hud-name').textContent = level.name + (level.hard ? ' · HARD' : ''); }
@@ -680,16 +732,25 @@
     $('#btn-sound').textContent = progress.sound ? '🔊' : '🔇'; if (progress.sound) SFX.click();
   });
   $('#btn-sound').textContent = progress.sound ? '🔊' : '🔇';
+  function refreshSmackBtn() { $('#btn-smack').classList.toggle('off', !progress.smack); $('#btn-smack').title = 'Mochi smack: ' + (progress.smack ? 'on' : 'off'); }
+  $('#btn-smack').addEventListener('click', function () {
+    progress.smack = !progress.smack; save(); refreshSmackBtn(); SFX.click();
+    toast(progress.smack ? 'Mochi smack ON — she bats the wool across' : 'Mochi smack OFF — wool just flies', 1800);
+  });
+  refreshSmackBtn();
   document.addEventListener('keydown', function (ev) {
     if ($('#game').classList.contains('hidden')) return;
     if (ev.key === 'z' || ev.key === 'u') undo();
     if (ev.key === 'h') showHint();
     if (ev.key === 'r') restart();
+    if (ev.key === 'k') $('#btn-smack').click();
     if (ev.key === 'Escape') { selected = -1; hint = null; }
   });
 
   window.WoolSort = { state: function () { return st; }, level: function () { return level; }, layout: function () { return layout; },
-    move: tryMove, start: startLevel, daily: startDaily, engine: E, sfx: SFX, progress: function () { return progress; } };
+    move: tryMove, start: startLevel, daily: startDaily, engine: E, sfx: SFX, progress: function () { return progress; },
+    anim: function () { return anim; }, cat: function () { return cat; }, setTime: function (t) { debugTime = t; }, render: function () { render(clock()); },
+    snap: function (w) { var c = document.createElement('canvas'); var k = w / canvas.width; c.width = w; c.height = Math.round(canvas.height * k); c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.85); } };
 
   loadAll().then(function () { resize(); openMenu(); requestAnimationFrame(frame); });
 })();
