@@ -46,6 +46,13 @@ body { display: flex; justify-content: center; }
 .lvl:active { transform: translateY(3px); box-shadow: 0 2px 0 #d9c3b0; }
 .lvl.locked { background: #d7cbc2; color: #8b7f76; cursor: default; box-shadow: 0 4px 0 #b9aa9f; }
 .lvl small { font-size: 12px; letter-spacing: 1px; color: #c9a100; height: 14px; line-height: 14px; }
+.lvl.hard { background: #fff1f1; box-shadow: 0 5px 0 #d9a3a3, 0 8px 14px rgba(0,0,0,.18); }
+.lvl.hard small { color: var(--red); font-size: 9px; letter-spacing: .5px; }
+.chapter {
+  grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px;
+  color: var(--cream); font-family: var(--font-head); font-weight: 600; font-size: 15px; text-shadow: 0 2px 4px rgba(0,0,0,.6);
+}
+.chapter em { font-style: normal; font-size: 12px; opacity: .85; }
 .lvl.locked small { color: #a89a90; }
 #howto { width: 100%; max-width: 420px; background: rgba(255, 250, 243, .92); border-radius: 16px; padding: 10px 14px; font-size: 14px; line-height: 1.45; }
 #howto summary { font-family: var(--font-head); font-weight: 600; font-size: 17px; cursor: pointer; }

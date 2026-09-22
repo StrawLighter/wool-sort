@@ -31,7 +31,9 @@
     { name: 'Cocoa',  hex: '#8d5524' },
     { name: 'Lilac',  hex: '#b388ff' },
     { name: 'Lime',   hex: '#9acd32' },
-    { name: 'Slate',  hex: '#5c6b7a' }
+    { name: 'Slate',  hex: '#5c6b7a' },
+    { name: 'Navy',   hex: '#22318f' },
+    { name: 'Forest', hex: '#1b6b3a' }
   ];
 
   function topRun(spool) {
@@ -230,7 +232,7 @@
    * Depth-first search for ANY solution, quickly. Used for in-game hints.
    * Returns the move list or null.
    */
-  function solveDFS(st0, maxNodes) {
+  function solveDFS(st0, maxNodes, rng) {
     maxNodes = maxNodes || 200000;
     var start = liteState(st0);
     if (isWon(start)) return [];
@@ -242,7 +244,7 @@
       var top = stack[stack.length - 1];
       if (!top.moves) {
         var ms = legalMoves(top.st, true);
-        var scored = ms.map(function (m) { return { m: m, s: scoreMove(top.st, m) }; });
+        var scored = ms.map(function (m) { return { m: m, s: scoreMove(top.st, m) + (rng ? rng() * 12 : 0) }; });
         scored.sort(function (x, y) { return y.s - x.s; });
         top.moves = scored.map(function (x) { return x.m; });
       }
@@ -256,8 +258,72 @@
       explored++;
       if (explored > maxNodes) return null;
       path.push(mv);
-      if (isWon(nx)) return path.slice();
+      if (isWon(nx)) { var out = path.slice(); out.nodes = explored; return out; }
       stack.push({ st: nx, moves: null, i: 0 });
+    }
+    return null;
+  }
+
+  /**
+   * Admissible heuristic: every colour split into r runs needs at least r-1
+   * moves to gather (a move transfers a single run of a single colour).
+   */
+  function heuristic(st) {
+    var runs = {};
+    for (var i = 0; i < st.spools.length; i++) {
+      var s = st.spools[i];
+      for (var j = 0; j < s.length; j++) if (j === 0 || s[j] !== s[j - 1]) runs[s[j]] = (runs[s[j]] || 0) + 1;
+    }
+    var h = 0;
+    for (var c in runs) h += runs[c] - 1;
+    return h;
+  }
+
+  // tiny binary heap on [f, g, str]
+  function heapPush(h, item) {
+    h.push(item); var i = h.length - 1;
+    while (i > 0) { var p = (i - 1) >> 1; if (cmp(h[i], h[p]) >= 0) break; var t = h[i]; h[i] = h[p]; h[p] = t; i = p; }
+  }
+  function heapPop(h) {
+    var top = h[0], last = h.pop();
+    if (h.length) { h[0] = last; var i = 0, n = h.length;
+      for (;;) { var l = 2 * i + 1, r = l + 1, m = i;
+        if (l < n && cmp(h[l], h[m]) < 0) m = l; if (r < n && cmp(h[r], h[m]) < 0) m = r;
+        if (m === i) break; var t = h[i]; h[i] = h[m]; h[m] = t; i = m; } }
+    return top;
+  }
+  function cmp(a, b) { return a[0] - b[0] || b[1] - a[1]; } // lower f first, deeper first on ties
+
+  /**
+   * A* search for the SHORTEST solution (heuristic is consistent, so the first
+   * goal popped is optimal). Far fewer nodes than BFS on big boards.
+   */
+  function solveAStar(st0, maxNodes) {
+    maxNodes = maxNodes || 1500000;
+    var start = liteState(st0);
+    if (isWon(start)) return [];
+    var caps = start.caps, totals = start.totals;
+    var best = new Map(), parent = new Map();
+    var k0 = stateKey(start);
+    best.set(k0, 0); parent.set(k0, null);
+    var heap = [[heuristic(start), 0, encode(start)]], explored = 0;
+    while (heap.length) {
+      var node = heapPop(heap);
+      var g = node[1], cur = node[2];
+      var st = decode(cur, caps, totals);
+      var key = stateKey(st);
+      if (best.get(key) < g) continue; // stale entry
+      if (isWon(st)) { var sol = reconstruct(parent, key, caps, totals); sol.nodes = explored; return sol; }
+      var moves = legalMoves(st, true);
+      for (var i = 0; i < moves.length; i++) {
+        var nx = decode(cur, caps, totals);
+        applyMove(nx, moves[i][0], moves[i][1]);
+        var k = stateKey(nx), g2 = g + 1;
+        if (best.has(k) && best.get(k) <= g2) continue;
+        best.set(k, g2); parent.set(k, { prev: cur, move: moves[i] });
+        heapPush(heap, [g2 + heuristic(nx), g2, encode(nx)]);
+        if (++explored > maxNodes) return null;
+      }
     }
     return null;
   }
@@ -293,7 +359,9 @@
     hasUsefulMove: hasUsefulMove,
     stateKey: stateKey,
     solveBFS: solveBFS,
+    solveAStar: solveAStar,
     solveDFS: solveDFS,
+    heuristic: heuristic,
     randomPlayRate: randomPlayRate
   };
 });

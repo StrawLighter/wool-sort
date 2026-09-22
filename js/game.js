@@ -162,11 +162,12 @@
   function computeLayout() {
     var W = canvas.width / dpr, H = canvas.height / dpr;
     var n = st.spools.length;
-    var scarfH = Math.min(H * 0.24, 168);
+    var cols = n <= 5 ? n : n <= 10 ? Math.ceil(n / 2) : Math.ceil(n / 3);
+    var rows = Math.ceil(n / cols);
+    var scarfH = rows >= 3 ? Math.min(H * 0.17, 118) : Math.min(H * 0.24, 168);
     var zoneTop = scarfH + 6, zoneBottom = H - 8;
-    var cols = n <= 5 ? n : Math.ceil(n / 2), rows = Math.ceil(n / cols);
     var slotW = Math.min((W - 14) / cols, 112);
-    var liftRoom = 26, rowGap = 22;
+    var liftRoom = rows >= 3 ? 18 : 26, rowGap = rows >= 3 ? 12 : 22;
     var spriteW = slotW * 0.86, spriteH = spriteW / GEOM.aspect;
     var need = rows * (spriteH + liftRoom + rowGap);
     var avail = zoneBottom - zoneTop;
@@ -535,19 +536,30 @@
     else toast(level.name, 1400);
   }
 
+  var CHAPTERS = ['First Stitches', 'Casting On', 'Purl & Plain', 'Cable Knit', 'Fair Isle', 'Double Points',
+    'Tangled Skeins', 'Moth Holes', 'Aran Sweater', 'The Grand Scarf'];
   function buildMenu() {
     var grid = $('#level-grid'); grid.innerHTML = '';
+    var next = LEVELS.findIndex(function (lv) { return !(progress.stars[lv.id] > 0); });
+    var focusBtn = null;
     LEVELS.forEach(function (lv, i) {
+      if (i % 10 === 0) {
+        var h = document.createElement('div'); h.className = 'chapter';
+        var done = LEVELS.slice(i, i + 10).filter(function (l) { return progress.stars[l.id] > 0; }).length;
+        h.innerHTML = '<span>Chapter ' + (i / 10 + 1) + ' · ' + (CHAPTERS[i / 10] || '') + '</span><em>' + done + '/10</em>';
+        grid.appendChild(h);
+      }
       var b = document.createElement('button');
       var s = progress.stars[lv.id] || 0, un = unlocked(i);
-      b.className = 'lvl' + (un ? '' : ' locked');
-      b.innerHTML = (un ? lv.id : '🔒') + '<small>' + (s ? '★'.repeat(s) : '') + '</small>';
-      b.title = lv.name;
+      b.className = 'lvl' + (un ? '' : ' locked') + (lv.hard ? ' hard' : '');
+      b.innerHTML = (un ? lv.id : '🔒') + '<small>' + (s ? '★'.repeat(s) : (lv.hard && un ? 'HARD' : '')) + '</small>';
+      b.title = lv.name + (lv.hard ? ' (hard)' : '');
       if (un) b.addEventListener('click', function () { SFX.click(); startLevel(i); });
+      if (i === next) focusBtn = b;
       grid.appendChild(b);
     });
-    var next = LEVELS.findIndex(function (lv) { return !(progress.stars[lv.id] > 0); });
     $('#btn-play').textContent = next <= 0 ? 'Play' : next < 0 ? 'Play again' : 'Continue · Level ' + LEVELS[next].id;
+    if (focusBtn && next > 4) setTimeout(function () { focusBtn.scrollIntoView({ block: 'center' }); }, 30);
   }
   function openMenu() { buildMenu(); show('#menu'); }
 
