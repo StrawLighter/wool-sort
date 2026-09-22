@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-  <meta name="theme-color" content="#2b1f2e">
+  <meta name="theme-color" content="#e4002b">
   <title>Wool Sort</title>
-  <meta name="description" content="A cosy kitten & wool take on the water-sort puzzle: 100 levels. Wind wool between spools; finish a colour and Mochi knits it into the scarf.">
+  <meta name="description" content="A cosy kitten & wool take on the water-sort puzzle: 100 levels plus a daily puzzle. Wind wool between spools; finish a colour and Mochi knits it into the scarf.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="icon" href="assets/yarn.png" type="image/png">
 </head>
@@ -23,7 +23,14 @@
     <!-- ===== Menu ===== -->
     <div id="menu" class="screen hidden">
       <img id="logo" src="assets/logo.png" alt="Wool Sort">
-      <button id="btn-play" class="btn btn-cta">Play</button>
+      <div id="menu-buttons">
+        <button id="btn-play" class="btn btn-cta">Play</button>
+        <button id="btn-daily" class="btn btn-daily">
+          <img src="assets/icon_daily.png" alt="">
+          <span><b>Daily Puzzle</b><small id="daily-date">Today</small><small id="daily-status" class="stars-inline">Not played yet</small></span>
+          <em id="daily-streak"></em>
+        </button>
+      </div>
       <div id="level-grid"></div>
       <details id="howto">
         <summary>How to play</summary>
@@ -33,6 +40,7 @@
           <li>Empty every spool to finish the scarf. Beat par (+2) for three stars.</li>
           <li>Little bobbins hold less wool. Short strands have only three bands. Fuzzy wool hides its colour until it reaches the top.</li>
           <li>100 levels in ten chapters. Every tenth level is a <strong>HARD</strong> finale: fuzzy wool, one spare spool and, later on, a bobbin.</li>
+          <li><strong>Daily Puzzle:</strong> one fresh board a day, the same for everyone. Each weekday has its own twist and Sunday is the big one. Play every day to build a 🔥 streak.</li>
         </ul>
       </details>
       <p class="credit">A Lightbourne Labs kitten game · sibling of <a href="https://strawlighter.github.io/wool-flow/" target="_blank" rel="noopener">Wool Flow</a></p>
@@ -63,8 +71,9 @@
         <div id="win-stars" class="stars">★★★</div>
         <p id="win-text">You finished the scarf in 12 moves (par 11).</p>
         <div class="row">
-          <button id="btn-win-levels" class="btn">Levels</button>
-          <button id="btn-win-replay" class="btn">Replay</button>
+          <button id="btn-win-levels" class="btn btn-yellow">Levels</button>
+          <button id="btn-win-replay" class="btn btn-green">Replay</button>
+          <button id="btn-win-share" class="btn btn-blue hidden">Share</button>
           <button id="btn-win-next" class="btn btn-cta">Next</button>
         </div>
       </div>
@@ -77,8 +86,8 @@
         <h2>Mochi's tangled!</h2>
         <p>There are no useful moves left. Undo a few steps, add a spool or start over.</p>
         <div class="row">
-          <button id="btn-stuck-undo" class="btn">Undo</button>
-          <button id="btn-stuck-spool" class="btn">+Spool</button>
+          <button id="btn-stuck-undo" class="btn btn-blue">Undo</button>
+          <button id="btn-stuck-spool" class="btn btn-green">+Spool</button>
           <button id="btn-stuck-restart" class="btn btn-cta">Restart</button>
         </div>
       </div>

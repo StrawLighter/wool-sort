@@ -1,6 +1,6 @@
 # Wool Sort 🧶🐱
 
-A cosy kitten-and-wool take on the *water sort* puzzle. Wind wool between wooden spools until every colour is together — and watch Mochi knit each finished colour straight into her scarf. **100 levels in ten chapters.**
+A cosy kitten-and-wool take on the *water sort* puzzle. Wind wool between wooden spools until every colour is together — and watch Mochi knit each finished colour straight into her scarf. **100 levels in ten chapters, plus a daily puzzle.**
 
 Plain HTML5 + Canvas. No build step, no dependencies. Works on phones (portrait) and desktop. Sibling of [Wool Flow](https://github.com/StrawLighter/wool-flow).
 
@@ -31,6 +31,21 @@ then visit <http://localhost:8766>. With GitHub Pages enabled the game is live a
 | **Restart** | Deal the level again. |
 
 Keyboard: `z`/`u` undo, `h` hint, `r` restart, `Esc` deselect.
+
+## Daily Puzzle
+
+One fresh board a day, the same for everyone: the level is dealt in the browser from a hash of the local date (`WoolEngine.buildDaily('YYYY-MM-DD')`), verified solvable and given an exact A* par on the spot (well under a second). Each weekday has its own twist — plain Monday, short-strand Tuesday, bobbin Wednesday, fuzzy Thursday, odd-bobbin Friday, a bigger two-spare Saturday and a HARD Sunday finale (fuzzy + bobbin + an extra colour). Results and a 🔥 streak are kept in the browser; the win screen has a Share button that copies a one-line result.
+
+## Sound
+
+All sound effects are synthesised live with WebAudio (no audio files): a wool swish and pluck when you pick up, a per-band pluck as wool winds on, a soft thump when you drop, needle clicks and a bell run when Mochi knits, a jingle with a kitten meow and purr on a win, a sad mew when you are stuck, and small pops for the UI. The speaker button in the HUD mutes everything.
+
+## Colour scheme
+
+The palette follows the Sesame Street principle of a calm neutral base with bold saturated primaries on everything you can touch:
+
+- **Wool colours** (`PALETTE` in `js/engine.js`): Elmo Red `#e4002b`, Cookie Blue `#1f75fe`, Big Bird Yellow `#ffd23f`, Oscar Green `#3cb44b`, Ernie Orange `#ff7f11`, Count Purple `#7b2cbf`, Abby Pink `#ff5fa2`, Rosita Teal `#12b5c6`, Snuffy Brown `#8d5524`, Telly Magenta `#d6249f`, Kermit Lime `#9acd32`, Grover Blue `#22318f` (+ two spares). The wool texture is blended lightly so the colours stay vivid.
+- **UI** (`:root` in `css/style.css`): red for the call to action (Play / Next / Restart-in-modal), yellow for reward (stars, moves badge, completed levels, Hint), blue for tools (Undo, Daily, Share, home/sound), green for go (+Spool, Replay), orange for Restart. Everything gets a chunky dark-ink outline and a hard drop shadow; each chapter has its own colour pill and level stripe.
 
 ## Levels
 
@@ -167,9 +182,9 @@ All 100 levels are dealt and proven solvable by `tools/gen.js`. *Par* is the exa
 ```
 index.html        page shell, menu, HUD, modals
 css/style.css     UI styling
-js/engine.js      pure rules engine shared by browser + tools: moves, knit-away, solvers (A* for par, BFS, DFS for hints)
+js/engine.js      pure rules engine shared by browser + tools: moves, knit-away, dealing, daily puzzle, solvers (A* for par, BFS, DFS for hints)
 js/levels.js      generated level data (do not edit by hand)
-js/game.js        canvas renderer, animation, input, sound, progress
+js/game.js        canvas renderer, animation, input, WebAudio sound kit, daily puzzle UI, progress
 tools/gen.js      level generator: deals, verifies, rates difficulty, writes js/levels.js (worker threads)
 assets/           art
 ```
@@ -188,7 +203,7 @@ Levels 1–10 are hand-tuned specs in `HAND`; 11–100 come from `specFor(id)` i
 
 ## Art
 
-Logo, background, wooden spool, kitten poses, toolbar icons, the "Purr-fect!" banner and the two white wool textures were generated with Higgsfield (GPT Image 2.5), 12 images / 12 credits, then trimmed. The wool band and scarf textures are white so the game tints them per colour at runtime (`multiply` on an offscreen canvas) — any palette works. The celebration and thinking kittens reuse Wool Flow's Mochi so the two games share a character. Sounds are a tiny WebAudio synth; there are no audio files.
+Logo, background, wooden spool, kitten poses, toolbar icons, the daily-puzzle icon, the "Purr-fect!" banner and the two white wool textures were generated with Higgsfield (GPT Image 2.5), 15 images / 15 credits, then trimmed. The wool band and scarf textures are white so the game tints them per colour at runtime (`multiply` on an offscreen canvas) — any palette works. The celebration and thinking kittens reuse Wool Flow's Mochi so the two games share a character. Sounds are synthesised with WebAudio; there are no audio files.
 
 ## Licence
 

@@ -86,43 +86,10 @@ function specFor(id) {
 }
 
 // ---------------- dealing ----------------
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+const mulberry32 = E.mulberry32;
 
 function deal(spec, seed, empties) {
-  const rng = mulberry32(seed * 7919 + spec.id * 104729);
-  const cap = 4;
-  const bands = [];
-  const shorts = spec.shorts || 0;
-  for (let c = 0; c < spec.colors; c++) {
-    const n = c >= spec.colors - shorts ? 3 : cap; // last colours are short strands
-    for (let i = 0; i < n; i++) bands.push(c);
-  }
-  for (let i = bands.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [bands[i], bands[j]] = [bands[j], bands[i]];
-  }
-  const spools = [];
-  for (let i = 0; i < bands.length; i += cap) spools.push(bands.slice(i, i + cap));
-  const caps = spools.map(() => cap);
-  for (let i = 0; i < empties; i++) { spools.push([]); caps.push(cap); }
-  (spec.smalls || []).forEach(s => { spools.push([]); caps.push(s); });
-  const level = { id: spec.id, name: spec.name, cap, caps, spools, hidden: !!spec.hidden };
-  if (spec.hard) level.hard = true;
-  const totals = {};
-  bands.forEach(c => { totals[c] = (totals[c] || 0) + 1; });
-  for (const s of spools) if (s.length >= 2 && E.isUniform(s)) return null; // boring start
-  for (const s of spools) { // would knit instantly
-    const run = E.topRun(s);
-    if (s.length && s.length === totals[run.color] && E.isUniform(s)) return null;
-  }
-  return level;
+  return E.dealSpec(Object.assign({}, spec, { empties }), seed);
 }
 
 function build(spec, log) {
@@ -178,6 +145,12 @@ function build(spec, log) {
 function verify(levels, quiet) {
   let ok = true;
   for (const lv of levels) {
+    // the stored deal must still be reproducible from its spec + seed
+    if (typeof lv.id === 'number' && lv.id >= 1 && lv.id <= TOTAL) {
+      const empties = lv.caps.filter((c, i) => c === 4 && lv.spools[i].length === 0).length;
+      const re = deal(specFor(lv.id), lv.seed, empties);
+      if (!re || JSON.stringify(re.spools) !== JSON.stringify(lv.spools)) { console.error(`L${lv.id}: deal no longer reproducible from seed ${lv.seed}`); ok = false; }
+    }
     const st = E.newState(lv);
     for (const [a, b] of lv.solution) {
       if (!E.applyMove(st, a, b)) { console.error(`L${lv.id}: illegal stored move ${a}->${b}`); ok = false; break; }

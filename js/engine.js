@@ -18,23 +18,109 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  // Sesame-style saturated palette shared with Wool Flow.
+  // Sesame Street palette: bold saturated primaries first, 12 used by the levels, 2 spares.
   var PALETTE = [
-    { name: 'Rose',   hex: '#ff5fa2' },
-    { name: 'Sky',    hex: '#1f75fe' },
-    { name: 'Butter', hex: '#ffd23f' },
-    { name: 'Mint',   hex: '#3cb44b' },
-    { name: 'Tangerine', hex: '#ff7f11' },
-    { name: 'Plum',   hex: '#7b2cbf' },
-    { name: 'Cherry', hex: '#e4002b' },
-    { name: 'Lagoon', hex: '#12b5c6' },
-    { name: 'Cocoa',  hex: '#8d5524' },
-    { name: 'Lilac',  hex: '#b388ff' },
-    { name: 'Lime',   hex: '#9acd32' },
-    { name: 'Slate',  hex: '#5c6b7a' },
-    { name: 'Navy',   hex: '#22318f' },
-    { name: 'Forest', hex: '#1b6b3a' }
+    { name: 'Elmo Red',        hex: '#e4002b' },
+    { name: 'Cookie Blue',     hex: '#1f75fe' },
+    { name: 'Big Bird Yellow', hex: '#ffd23f' },
+    { name: 'Oscar Green',     hex: '#3cb44b' },
+    { name: 'Ernie Orange',    hex: '#ff7f11' },
+    { name: 'Count Purple',    hex: '#7b2cbf' },
+    { name: 'Abby Pink',       hex: '#ff5fa2' },
+    { name: 'Rosita Teal',     hex: '#12b5c6' },
+    { name: 'Snuffy Brown',    hex: '#8d5524' },
+    { name: 'Telly Magenta',   hex: '#d6249f' },
+    { name: 'Kermit Lime',     hex: '#9acd32' },
+    { name: 'Grover Blue',     hex: '#22318f' },
+    { name: 'Zoe Lilac',       hex: '#b388ff' },
+    { name: 'Bert Slate',      hex: '#5c6b7a' }
   ];
+
+  // ---------- dealing (shared by tools/gen.js and the daily puzzle) ----------
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /**
+   * Deal a level from a spec { id, name, colors, empties, smalls?, shorts?, hidden?, hard? }
+   * and a seed. Returns null for boring deals (a spool already uniform, or a
+   * colour that would knit instantly).
+   */
+  function dealSpec(spec, seed) {
+    var rng = mulberry32(seed * 7919 + ((spec.id | 0) * 104729));
+    var cap = 4, bands = [], shorts = spec.shorts || 0, c, i, j, t;
+    for (c = 0; c < spec.colors; c++) {
+      var n = c >= spec.colors - shorts ? 3 : cap; // last colours are short strands
+      for (i = 0; i < n; i++) bands.push(c);
+    }
+    for (i = bands.length - 1; i > 0; i--) {
+      j = Math.floor(rng() * (i + 1));
+      t = bands[i]; bands[i] = bands[j]; bands[j] = t;
+    }
+    var spools = [];
+    for (i = 0; i < bands.length; i += cap) spools.push(bands.slice(i, i + cap));
+    var caps = spools.map(function () { return cap; });
+    for (i = 0; i < (spec.empties || 0); i++) { spools.push([]); caps.push(cap); }
+    (spec.smalls || []).forEach(function (sc) { spools.push([]); caps.push(sc); });
+    var level = { id: spec.id, name: spec.name, cap: cap, caps: caps, spools: spools, hidden: !!spec.hidden };
+    if (spec.hard) level.hard = true;
+    var totals = {};
+    bands.forEach(function (b) { totals[b] = (totals[b] || 0) + 1; });
+    for (i = 0; i < spools.length; i++) if (spools[i].length >= 2 && isUniform(spools[i])) return null;
+    for (i = 0; i < spools.length; i++) {
+      var run = topRun(spools[i]);
+      if (spools[i].length && spools[i].length === totals[run.color] && isUniform(spools[i])) return null;
+    }
+    return level;
+  }
+
+  // ---------- daily puzzle ----------
+  function hashStr(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  var DAY_TWIST = ['Sunday finale', 'Plain Monday', 'Short-strand Tuesday', 'Bobbin Wednesday', 'Fuzzy Thursday', 'Odd-bobbin Friday', 'Big Saturday'];
+
+  /** Spec for the daily puzzle of a 'YYYY-MM-DD' date (local). */
+  function dailySpec(dateStr) {
+    var h = hashStr('wool-sort-daily-' + dateStr);
+    var p = dateStr.split('-');
+    var dow = new Date(+p[0], +p[1] - 1, +p[2]).getDay();
+    var spec = { id: 0, name: 'Daily Puzzle', colors: 7 + (h % 3), empties: 1, daily: dateStr, twist: DAY_TWIST[dow] };
+    switch (dow) {
+      case 2: spec.shorts = 1; break;
+      case 3: spec.smalls = [2]; break;
+      case 4: spec.hidden = true; break;
+      case 5: spec.smalls = [3]; spec.shorts = 1; break;
+      case 6: spec.empties = 2; spec.colors += 1; break;
+      case 0: spec.hidden = true; spec.smalls = [2]; spec.colors += 1; spec.hard = true; break;
+    }
+    return spec;
+  }
+
+  /** Build (deal + verify + par) the daily level for a date. Same result on every device. */
+  function buildDaily(dateStr) {
+    var spec = dailySpec(dateStr), h = hashStr(dateStr);
+    for (var k = 0; k < 80; k++) {
+      var seed = ((h + k * 7919) >>> 0) % 1000000 + 1;
+      var level = dealSpec(spec, seed);
+      if (!level) continue;
+      var sol = solveDFS(newState(level), 120000);
+      if (!sol) continue;
+      var best = solveAStar(newState(level), 250000);
+      level.par = best ? best.length : sol.length;
+      level.parExact = !!best;
+      level.seed = seed; level.daily = dateStr; level.twist = spec.twist;
+      return level;
+    }
+    return null;
+  }
 
   function topRun(spool) {
     var n = spool.length;
@@ -347,6 +433,11 @@
 
   return {
     PALETTE: PALETTE,
+    mulberry32: mulberry32,
+    dealSpec: dealSpec,
+    hashStr: hashStr,
+    dailySpec: dailySpec,
+    buildDaily: buildDaily,
     topRun: topRun,
     isUniform: isUniform,
     newState: newState,
